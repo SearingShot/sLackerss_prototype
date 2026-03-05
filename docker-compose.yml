@@ -24,4 +24,5 @@ services:
     environment:
       # Tell Next.js where the backend Docker container lives
       - NEXT_PUBLIC_API_URL=http://backend:8000
+      - DOCKER_ENV=true
     # In production AWS ECS or AppRunner, these two containers will be deployed separately

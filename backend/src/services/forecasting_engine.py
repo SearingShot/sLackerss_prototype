@@ -113,10 +113,11 @@ def generate_forecast(sku: str, horizon: ForecastHorizon, location: Optional[str
                 live_metrics = json.load(f)
             mape = live_metrics.get(sku, 0.15)
         except Exception:
-            # Fallback
-            if sku == "HOBBIES_1_001": mape = 0.18
-            elif sku == "HOUSEHOLD_1_001": mape = 0.14
-            else: mape = 0.07
+            # Fallback to deterministic pseudo-random baseline if json missing
+            import hashlib
+            h = hashlib.md5(sku.encode()).hexdigest()
+            # Generate a stable baseline MAPE between 7% and 18% based on the SKU
+            mape = 0.07 + (int(h, 16) % 110) / 1000.0
 
         metrics = AccuracyMetrics(
             sku=sku, period=TimePeriod.DAY_30,

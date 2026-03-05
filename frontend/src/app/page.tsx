@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  LineChart,
   Line,
   XAxis,
   YAxis,
@@ -24,18 +23,23 @@ import {
 export default function Dashboard() {
   const [forecastData, setForecastData] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [accuracyMetrics, setAccuracyMetrics] = useState<any>(null);
+  const [dashboardStats, setDashboardStats] = useState({
+    total_optimized_skus: 0,
+  });
+  const [activeModel, setActiveModel] = useState("Loading Model...");
+  const [locations, setLocations] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSku, setSelectedSku] = useState("HOBBIES_1_001");
+  const [selectedLocation, setSelectedLocation] = useState("LOC-1");
   const [restockingId, setRestockingId] = useState<string | null>(null);
 
-  const fetchData = async (sku: string) => {
+  const fetchData = async (sku: string, loc: string) => {
     try {
       setLoading(true);
-      const location = "LOC-1";
 
-      const fRes = await fetch(
-        `http://localhost:8000/api/v1/forecasts/${sku}?horizon=DAILY`,
-      );
+      const fRes = await fetch(`/api/v1/forecasts/${sku}?horizon=DAILY`);
       if (fRes.ok) {
         const fData = await fRes.json();
         const chartData = fData.predictions.map(
@@ -51,14 +55,33 @@ export default function Dashboard() {
           }),
         );
         setForecastData(chartData);
+        if (fData.accuracy_metrics) {
+          setAccuracyMetrics(fData.accuracy_metrics);
+        }
+        if (fData.model_used) {
+          setActiveModel(fData.model_used);
+        }
       }
 
-      const rRes = await fetch(
-        `http://localhost:8000/api/v1/recommendations/${location}`,
-      );
+      const rRes = await fetch(`/api/v1/recommendations/${loc}`);
       if (rRes.ok) {
         const rData = await rRes.json();
         setRecommendations(rData.recommendations);
+      }
+
+      const sRes = await fetch(`/api/v1/recommendations/stats`);
+      if (sRes.ok) {
+        const sData = await sRes.json();
+        setDashboardStats(sData);
+      }
+
+      const lRes = await fetch(`/api/v1/recommendations/locations`);
+      if (lRes.ok) {
+        const lData = await lRes.json();
+        setLocations(lData.locations);
+        if (lData.locations.length > 0 && selectedLocation === "LOC-1") {
+          setSelectedLocation(lData.locations[0]);
+        }
       }
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
@@ -68,27 +91,25 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    fetchData(selectedSku);
-  }, [selectedSku]);
+    fetchData(selectedSku, selectedLocation);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSku, selectedLocation]);
 
   const handleRestock = async (sku: string, quantity: number) => {
     try {
       setRestockingId(sku);
-      const res = await fetch(
-        `http://localhost:8000/api/v1/recommendations/${sku}/restock`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ quantity }),
+      const res = await fetch(`/api/v1/recommendations/${sku}/restock`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify({ quantity }),
+      });
 
       if (res.ok) {
         alert(`Successfully ordered ${quantity} units of ${sku}`);
         // Refresh data to show updated inventory
-        await fetchData(selectedSku);
+        await fetchData(selectedSku, selectedLocation);
       }
     } catch (error) {
       console.error("Error restocking:", error);
@@ -112,7 +133,7 @@ export default function Dashboard() {
         <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
           <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
           <span className="text-sm font-medium text-slate-600">
-            Ensemble Model Active (XGBoost + ARIMA)
+            {activeModel} Active
           </span>
         </div>
       </header>
@@ -131,20 +152,37 @@ export default function Dashboard() {
                   <h2 className="text-xl font-semibold text-slate-800">
                     Forecast vs Confidence Interval
                   </h2>
-                  <p className="text-sm text-slate-500">
-                    SKU: {selectedSku} | Next 30 Days
-                  </p>
+                  <div className="flex gap-4 items-center">
+                    <p className="text-sm text-slate-500">
+                      SKU: {selectedSku} | Next 30 Days
+                    </p>
+                    <div className="flex bg-slate-100 rounded-md p-0.5">
+                      {locations.map((loc) => (
+                        <button
+                          key={loc}
+                          onClick={() => setSelectedLocation(loc)}
+                          className={`px-3 py-1 text-xs font-semibold rounded-sm transition-colors ${selectedLocation === loc ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                        >
+                          {loc}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
                 <select
                   value={selectedSku}
                   onChange={(e) => setSelectedSku(e.target.value)}
                   className="bg-blue-50 border border-blue-200 text-blue-700 font-medium rounded-md px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer hover:bg-blue-100 transition-colors"
                 >
-                  <option value="HOBBIES_1_001">HOBBIES_1_001 (Hobbies)</option>
-                  <option value="HOUSEHOLD_1_001">
-                    HOUSEHOLD_1_001 (Household)
-                  </option>
-                  <option value="FOODS_1_001">FOODS_1_001 (Grocery)</option>
+                  {recommendations.length > 0 ? (
+                    recommendations.map((rec: { sku: string }) => (
+                      <option key={rec.sku} value={rec.sku}>
+                        {rec.sku}
+                      </option>
+                    ))
+                  ) : (
+                    <option value={selectedSku}>{selectedSku}</option>
+                  )}
                 </select>
               </div>
 
@@ -171,7 +209,8 @@ export default function Dashboard() {
                     />
                     <YAxis tick={{ fontSize: 12, fill: "#64748b" }} />
                     <Tooltip
-                      content={({ active, payload, label }) => {
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      content={({ active, payload, label }: any) => {
                         if (active && payload && payload.length) {
                           // Date string
                           const dateStr = new Date(label).toLocaleDateString(
@@ -274,11 +313,9 @@ export default function Dashboard() {
                     Model Accuracy (MAPE)
                   </p>
                   <p className="text-2xl font-bold text-slate-800">
-                    {selectedSku === "HOBBIES_1_001"
-                      ? "82.0%"
-                      : selectedSku === "HOUSEHOLD_1_001"
-                        ? "86.0%"
-                        : "93.0%"}
+                    {accuracyMetrics && accuracyMetrics.mape
+                      ? `${(accuracyMetrics.mape * 100).toFixed(1)}%`
+                      : "Calculating..."}
                   </p>
                 </div>
               </div>
@@ -290,7 +327,9 @@ export default function Dashboard() {
                   <p className="text-sm text-slate-500 font-medium">
                     Auto-Optimized SKUs
                   </p>
-                  <p className="text-2xl font-bold text-slate-800">1,248</p>
+                  <p className="text-2xl font-bold text-slate-800">
+                    {dashboardStats.total_optimized_skus.toLocaleString()}
+                  </p>
                 </div>
               </div>
               <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-start gap-4">

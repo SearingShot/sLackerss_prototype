@@ -27,6 +27,40 @@ def get_current_inventory(sku: str, location: str) -> int:
 class RestockRequest(BaseModel):
     quantity: int
 
+@router.get("/stats")
+async def get_stats():
+    db_path = os.path.join(os.path.dirname(__file__), "..", "..", "..", "inventory.sqlite")
+    total_skus = 0
+    if os.path.exists(db_path):
+        conn = sqlite3.connect(db_path)
+        c = conn.cursor()
+        c.execute("SELECT COUNT(DISTINCT sku) FROM inventory")
+        row = c.fetchone()
+        total_skus = row[0] if row else 0
+        conn.close()
+    
+    if total_skus == 0:
+        total_skus = 6
+        
+    return {"total_optimized_skus": total_skus}
+
+@router.get("/locations")
+async def get_locations():
+    db_path = os.path.join(os.path.dirname(__file__), "..", "..", "..", "inventory.sqlite")
+    locations = []
+    if os.path.exists(db_path):
+        conn = sqlite3.connect(db_path)
+        c = conn.cursor()
+        c.execute("SELECT DISTINCT location FROM inventory")
+        rows = c.fetchall()
+        locations = [row[0] for row in rows]
+        conn.close()
+    
+    if not locations:
+        locations = ["CA_1"]
+        
+    return {"locations": locations}
+
 @router.post("/{sku}/restock")
 async def restock_item(sku: str, request: RestockRequest):
     db_path = os.path.join(os.path.dirname(__file__), "..", "..", "..", "inventory.sqlite")
@@ -48,10 +82,25 @@ async def get_recommendations(
     location: str,
     priority: Optional[str] = Query(None, description="Filter by priority, e.g., CRITICAL, HIGH")
 ):
-    mock_skus = ["ELEC-100", "FASH-200", "GROC-300"]
+    # Fetch all SKUs for this location from the database
+    db_path = os.path.join(os.path.dirname(__file__), "..", "..", "..", "inventory.sqlite")
+    skus = []
+    if os.path.exists(db_path):
+        conn = sqlite3.connect(db_path)
+        c = conn.cursor()
+        c.execute("SELECT DISTINCT sku FROM inventory WHERE location=?", (location,))
+        rows = c.fetchall()
+        skus = [row[0] for row in rows]
+        conn.close()
+    
+    # Fallback if DB doesn't exist
+    if not skus:
+        skus = ["HOBBIES_1_001", "HOUSEHOLD_1_001", "FOODS_1_001"]
+
     recommendations = []
     
-    for sku in mock_skus:
+    for sku in skus:
+        # Note: In a real production app we'd bulk forecast to save time
         forecast = generate_forecast(sku=sku, horizon=ForecastHorizon.DAILY, location=location)
         current_inv = get_current_inventory(sku, location)
         

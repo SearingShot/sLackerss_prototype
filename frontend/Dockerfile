@@ -1,4 +1,4 @@
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
@@ -8,10 +8,11 @@ RUN npm ci
 
 # Copy source code and build
 COPY . .
+ENV DOCKER_ENV=true
 RUN npm run build
 
 # Production image
-FROM node:18-alpine AS runner
+FROM node:20-alpine AS runner
 
 WORKDIR /app
 
@@ -29,5 +30,4 @@ ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
 
 # Note: server.js is created by next build automatically when output is set to 'standalone' in next.config.js
-# If standalone is not enabled, use npm start
-CMD ["npm", "start"]
+CMD ["node", "server.js"]

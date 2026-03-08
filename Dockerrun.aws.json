@@ -1,0 +1,48 @@
+{
+    "AWSEBDockerrunVersion": "3",
+    "containerDefinitions": [
+        {
+            "name": "backend",
+            "image": "backend",
+            "essential": true,
+            "memory": 1024,
+            "portMappings": [
+                {
+                    "hostPort": 8000,
+                    "containerPort": 8000
+                }
+            ],
+            "environment": [
+                {
+                    "name": "ENV",
+                    "value": "production"
+                }
+            ]
+        },
+        {
+            "name": "frontend",
+            "image": "frontend",
+            "essential": true,
+            "memory": 1024,
+            "portMappings": [
+                {
+                    "hostPort": 80,
+                    "containerPort": 3000
+                }
+            ],
+            "links": [
+                "backend"
+            ],
+            "environment": [
+                {
+                    "name": "NEXT_PUBLIC_API_URL",
+                    "value": "http://localhost:8000"
+                },
+                {
+                    "name": "DOCKER_ENV",
+                    "value": "true"
+                }
+            ]
+        }
+    ]
+}

@@ -51,7 +51,7 @@ def create_features(df):
     df['rolling_mean_7'] = df['quantity_sold'].shift(1).rolling(window=7, min_periods=1).mean()
     df['rolling_mean_30'] = df['quantity_sold'].shift(1).rolling(window=30, min_periods=1).mean()
     
-    df = df.fillna(method='bfill').fillna(0)
+    df = df.bfill().fillna(0)
     
     return df
 

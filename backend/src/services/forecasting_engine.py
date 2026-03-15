@@ -81,7 +81,7 @@ def get_forecast_from_xgb(sku: str, days_to_predict: int):
                    
         X_pred = df_context.iloc[-1:][features]
         # Fill any remaining NaNs with column means or backfill
-        X_pred = X_pred.fillna(method='bfill').fillna(0)
+        X_pred = X_pred.bfill().fillna(0)
         
         # Predict
         pred_value = model.predict(X_pred)[0]

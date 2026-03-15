@@ -37,7 +37,7 @@ def create_features(df):
     df['rolling_mean_30'] = df['quantity_sold'].shift(1).rolling(window=30).mean()
     
     # Fill NAs created by shift/rolling
-    df = df.fillna(method='bfill')
+    df = df.bfill()
     
     return df
 

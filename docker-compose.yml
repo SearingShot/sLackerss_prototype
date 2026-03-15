@@ -2,16 +2,16 @@ version: "3.8"
 
 services:
   backend:
-    image: 590183918107.dkr.ecr.us-east-1.amazonaws.com/slackerss-backend:latest
-    container_name: slackers-backend
+    image: 637423591689.dkr.ecr.us-east-1.amazonaws.com/slackerss-backend:latest
+    container_name: slackerss-backend
     ports:
       - "8000:8000"
     environment:
       - ENV=production
 
   frontend:
-    image: 590183918107.dkr.ecr.us-east-1.amazonaws.com/slackerss-frontend:latest
-    container_name: slackers-frontend
+    image: 637423591689.dkr.ecr.us-east-1.amazonaws.com/slackerss-frontend:latest
+    container_name: slackerss-frontend
     ports:
       - "80:3000"
     depends_on:
